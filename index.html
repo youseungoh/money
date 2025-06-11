@@ -1,84 +1,90 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <title>유튜브 채널 수익 예측하기</title>
-    <style>
-        body {
-            font-family: 'Arial', sans-serif;
-            text-align: center;
-            padding: 50px;
-            background-color: #f9f9f9;
-        }
-        h1 {
-            color: #333;
-        }
-        input[type="text"] {
-            width: 400px;
-            padding: 10px;
-            font-size: 16px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-        }
-        button {
-            padding: 10px 20px;
-            font-size: 16px;
-            margin-left: 10px;
-            background-color: #0077cc;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-        button:hover {
-            background-color: #005fa3;
-        }
-        .result {
-            margin-top: 30px;
-            font-size: 32px;
-            color: #0077cc;
-            font-weight: bold;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>유튜브 채널 수익 예측기</title>
+  <style>
+    body {
+      font-family: 'Noto Sans KR', sans-serif;
+      background-color: #f4f6f8;
+      padding: 40px;
+      text-align: center;
+    }
+    h1 {
+      color: #0077cc;
+      font-size: 28px;
+      margin-bottom: 30px;
+    }
+    input[type="text"], input[type="number"] {
+      padding: 10px;
+      width: 80%;
+      font-size: 16px;
+      margin: 10px 0;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+    button {
+      padding: 12px 30px;
+      background-color: #0077cc;
+      color: white;
+      font-size: 16px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .result {
+      margin-top: 30px;
+      font-size: 20px;
+      font-weight: bold;
+      color: #0077cc;
+    }
+    .footer {
+      margin-top: 50px;
+      font-size: 13px;
+      color: #777;
+    }
+  </style>
 </head>
 <body>
-    <h1>유튜브 채널 수익 예측하기</h1>
-    <p>유튜브 채널 URL을 입력하고 조회 버튼을 눌러주세요.</p>
-    <input type="text" id="urlInput" placeholder="예: https://www.youtube.com/@채널이름">
-    <button onclick="predictRevenue()">조회하기</button>
+  <h1>유튜브 채널 수익 예측기</h1>
+  <p>아래에 유튜브 채널 주소와 구독자 수를 입력하세요</p>
 
-    <div class="result" id="result"></div>
+  <input type="text" id="urlInput" placeholder="예: https://www.youtube.com/@yourchannel" />
+  <br />
+  <input type="number" id="subsInput" placeholder="예: 5000 (구독자 수)" />
+  <br />
+  <button onclick="predictRevenue()">조회하기</button>
 
-    <script>
-        function hashCode(str) {
-            let hash = 0;
-            for (let i = 0; i < str.length; i++) {
-                hash = str.charCodeAt(i) + ((hash << 5) - hash);
-                hash = hash & hash; // 32비트 정수로 변환
-            }
-            return Math.abs(hash);
-        }
+  <div class="result" id="result"></div>
 
-        function predictRevenue() {
-            const url = document.getElementById('urlInput').value.trim();
-            const resultDiv = document.getElementById('result');
+  <div class="footer">
+    © 2025 유박사의 AI 연구소 | 본 수치는 추정값이며 실제와 다를 수 있습니다.
+  </div>
 
-            if (!url.includes("youtube.com")) {
-                resultDiv.innerHTML = "유효한 유튜브 URL을 입력해주세요.";
-                resultDiv.style.color = 'red';
-                return;
-            }
+  <script>
+    function predictRevenue() {
+      const url = document.getElementById("urlInput").value.trim();
+      const subs = parseInt(document.getElementById("subsInput").value.trim());
+      const resultDiv = document.getElementById("result");
 
-            // URL 기반 해시값으로 고정 수익 계산
-            const baseValue = hashCode(url);
-            const minRevenue = 100000;
-            const maxRevenue = 5000000;
-            const revenue = minRevenue + (baseValue % (maxRevenue - minRevenue));
+      if (!url.includes("youtube.com") || isNaN(subs) || subs <= 0) {
+        resultDiv.style.color = 'red';
+        resultDiv.innerHTML = "유효한 유튜브 주소와 구독자 수를 입력해주세요.";
+        return;
+      }
 
-            const formattedRevenue = revenue.toLocaleString('ko-KR');
-            resultDiv.style.color = '#0077cc';
-            resultDiv.innerHTML = `예상 수익: ₩${formattedRevenue}`;
-        }
-    </script>
+      const avgViews = subs * 10;
+      const cpm = 2.5;
+      const revenue = (avgViews / 1000) * cpm * 1350;
+      const formattedRevenue = Math.floor(revenue).toLocaleString("ko-KR");
+
+      resultDiv.style.color = '#0077cc';
+      resultDiv.innerHTML = `
+        입력된 구독자 수: ${subs.toLocaleString()}명<br>
+        예상 수익: ₩${formattedRevenue}
+      `;
+    }
+  </script>
 </body>
 </html>
