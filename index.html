@@ -1,0 +1,1604 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QR코드 생성기(by Seungoh You)</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  
+  :root,
+  [data-theme="light"] {
+    --bg: #ffffff;
+    --surface: #ffffff;
+    --surface-2: #f7f8fa;
+    --surface-3: #f0f1f4;
+    --ink: #1f1f1f;
+    --ink-2: #444444;
+    --muted: #767676;
+    --muted-2: #aaaaaa;
+    --line: #e5e5e5;
+    --line-soft: #f0f0f0;
+    --accent: #03c75a;
+    --accent-hover: #02b350;
+    --link: #1f5fde;
+    --link-hover: #0a3aa8;
+    --error: #ed3030;
+    --code-bg: #ffffff;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+    --tab-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+  
+  [data-theme="dark"] {
+    --bg: #0f1115;
+    --surface: #161920;
+    --surface-2: #1a1d25;
+    --surface-3: #20242d;
+    --ink: #f0f1f4;
+    --ink-2: #c5c7cd;
+    --muted: #8e9199;
+    --muted-2: #5d626d;
+    --line: #2a2e38;
+    --line-soft: #20242d;
+    --accent: #03c75a;
+    --accent-hover: #04d863;
+    --link: #6ea3ff;
+    --link-hover: #94beff;
+    --error: #ff5d5d;
+    --code-bg: #0f1115;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --tab-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  }
+  
+  html, body {
+    background: var(--bg);
+    transition: background-color 0.25s ease;
+  }
+  
+  body {
+    font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    color: var(--ink);
+    min-height: 100vh;
+    line-height: 1.55;
+    letter-spacing: -0.01em;
+    -webkit-font-smoothing: antialiased;
+    transition: background-color 0.25s ease, color 0.25s ease;
+  }
+  
+  /* Lucide icons default sizing */
+  [data-lucide] {
+    stroke-width: 2;
+  }
+  
+  /* 변환되기 전의 <i data-lucide> 태그가 텍스트로 보이지 않게 */
+  i[data-lucide] {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    vertical-align: -3px;
+  }
+  
+  /* Element transitions for theme switch */
+  .card, .preview-area, .decoder-result, .dropzone, 
+  textarea, input[type="text"], select, input[type="color"],
+  .tab-btn, .color-preset, .result-btn, button.action,
+  .mode-tab, .theme-toggle {
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+  }
+  
+  .container {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 60px 24px 80px;
+  }
+  
+  /* Theme toggle - 우측 상단 고정 */
+  .theme-toggle {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    transition: all 0.2s ease;
+    box-shadow: var(--shadow-sm);
+  }
+  
+  .theme-toggle:hover {
+    background: var(--surface-2);
+    border-color: var(--muted-2);
+    transform: rotate(15deg);
+  }
+  
+  .theme-toggle [data-lucide] {
+    width: 20px;
+    height: 20px;
+  }
+  
+  /* 라이트 모드에서는 sun 아이콘 숨기고 moon 표시, 다크 모드에서는 반대 */
+  /* Lucide는 <i> 태그를 SVG로 변환하면서 클래스를 보존함 */
+  [data-theme="light"] .icon-moon,
+  :root .icon-moon { display: block; }
+  [data-theme="light"] .icon-sun,
+  :root .icon-sun { display: none; }
+  [data-theme="dark"] .icon-moon { display: none; }
+  [data-theme="dark"] .icon-sun { display: block; }
+  
+  /* 테마 토글 안의 두 SVG가 겹쳐서 보이지 않도록 */
+  .theme-toggle svg {
+    width: 20px;
+    height: 20px;
+  }
+  
+  /* Header */
+  header {
+    margin-bottom: 48px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--line);
+  }
+  
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+  
+  .brand-mark {
+    width: 28px;
+    height: 28px;
+    background: var(--accent);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 800;
+    font-size: 0.9rem;
+    letter-spacing: -0.05em;
+  }
+  
+  .brand-text {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--muted);
+    letter-spacing: 0.02em;
+  }
+  
+  h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    letter-spacing: -0.04em;
+    line-height: 1.2;
+    margin-bottom: 6px;
+  }
+  
+  .subtitle {
+    color: var(--muted);
+    font-size: 0.95rem;
+  }
+  
+  /* Layout */
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 40px;
+    align-items: start;
+  }
+  
+  @media (max-width: 768px) {
+    .grid { grid-template-columns: 1fr; gap: 32px; }
+    .container { padding: 32px 16px 60px; }
+    h1 { font-size: 1.6rem; }
+  }
+  
+  /* Section */
+  .section-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    margin-bottom: 14px;
+    color: var(--ink);
+  }
+  
+  .section + .section {
+    margin-top: 28px;
+  }
+  
+  /* Fields */
+  .field {
+    margin-bottom: 0;
+  }
+  
+  label {
+    display: block;
+    font-size: 0.82rem;
+    font-weight: 500;
+    margin-bottom: 8px;
+    color: var(--ink-2);
+  }
+  
+  textarea, input[type="text"], select {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    font-family: inherit;
+    font-size: 0.92rem;
+    background: var(--surface);
+    color: var(--ink);
+    transition: border-color 0.15s ease;
+  }
+  
+  textarea:focus, input[type="text"]:focus, select:focus {
+    outline: none;
+    border-color: var(--ink);
+  }
+  
+  textarea {
+    resize: vertical;
+    min-height: 96px;
+    line-height: 1.5;
+  }
+  
+  select {
+    appearance: none;
+    -webkit-appearance: none;
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    padding-right: 36px;
+    cursor: pointer;
+  }
+  
+  [data-theme="light"] select,
+  :root select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%23444' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  }
+  
+  [data-theme="dark"] select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%23c5c7cd' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  }
+  
+  /* Tab buttons (form types) */
+  .tab-row {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  
+  .tab-btn {
+    padding: 8px 14px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    border-radius: 100px;
+    font-size: 0.83rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    font-family: inherit;
+    color: var(--ink-2);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  
+  .tab-btn [data-lucide] {
+    width: 14px;
+    height: 14px;
+  }
+  
+  .tab-btn:hover {
+    border-color: var(--muted);
+    color: var(--ink);
+  }
+  
+  .tab-btn.active {
+    background: var(--ink);
+    color: white;
+    border-color: var(--ink);
+  }
+  
+  /* Color preset chips */
+  .preset-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  
+  .color-preset {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 12px 7px 8px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    border-radius: 100px;
+    font-size: 0.82rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    font-family: inherit;
+    color: var(--ink-2);
+  }
+  
+  .color-preset:hover {
+    border-color: var(--muted);
+    color: var(--ink);
+  }
+  
+  .color-preset .swatch {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--swatch-fg);
+    box-shadow: inset 0 0 0 2px var(--swatch-bg), inset 0 0 0 3px var(--line);
+    flex-shrink: 0;
+  }
+  
+  /* Color picker rows */
+  .color-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  input[type="color"] {
+    width: 42px;
+    height: 42px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    cursor: pointer;
+    padding: 3px;
+  }
+  
+  .color-text {
+    flex: 1;
+    font-family: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+  }
+  
+  .row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  
+  /* Preview area - Naver style: white card with subtle border */
+  .preview-wrap {
+    position: sticky;
+    top: 24px;
+  }
+  
+  .preview-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    aspect-ratio: 1 / 1;
+    padding: 32px;
+    background: var(--surface-2);
+    border-radius: var(--radius);
+    margin-bottom: 16px;
+  }
+  
+  #qr-canvas {
+    max-width: 100%;
+    height: auto;
+    border-radius: 6px;
+    image-rendering: auto;
+  }
+  
+  .empty-state {
+    color: var(--muted-2);
+    font-size: 0.9rem;
+    text-align: center;
+  }
+  
+  .empty-state svg {
+    width: 48px;
+    height: 48px;
+    margin-bottom: 12px;
+    opacity: 0.5;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  
+  /* Action buttons */
+  .actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  
+  button.action {
+    padding: 13px 16px;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-family: inherit;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+  
+  .btn-primary {
+    background: var(--accent);
+    color: white;
+  }
+  
+  .btn-primary:hover:not(:disabled) {
+    background: var(--accent-hover);
+  }
+  
+  .btn-secondary {
+    background: var(--surface);
+    color: var(--ink);
+    border: 1px solid var(--line);
+  }
+  
+  .btn-secondary:hover:not(:disabled) {
+    background: var(--surface-2);
+    border-color: var(--muted-2);
+  }
+  button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  
+  /* Info text */
+  .info {
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin-top: 14px;
+    text-align: center;
+  }
+  
+  .info.error {
+    color: var(--error);
+    font-weight: 500;
+  }
+  
+  /* Footer */
+  footer {
+    margin-top: 60px;
+    padding-top: 24px;
+    border-top: 1px solid var(--line-soft);
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.78rem;
+  }
+  
+  footer .copyright {
+    margin-top: 6px;
+    font-size: 0.72rem;
+    color: var(--muted-2);
+  }
+  
+  /* Tab toggle (mode switcher) */
+  .mode-tabs {
+    display: inline-flex;
+    background: var(--surface-2);
+    border-radius: 100px;
+    padding: 4px;
+    gap: 2px;
+    margin-top: 24px;
+  }
+  
+  .mode-tab {
+    padding: 9px 22px;
+    border: none;
+    background: transparent;
+    border-radius: 100px;
+    font-family: inherit;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    color: var(--muted);
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  .mode-tab:hover {
+    color: var(--ink);
+  }
+  
+  .mode-tab.active {
+    background: var(--ink);
+    color: white;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  }
+  
+  .mode-tab svg {
+    width: 16px;
+    height: 16px;
+  }
+  
+  /* Page sections */
+  .page {
+    display: none;
+  }
+  
+  .page.active {
+    display: block;
+  }
+  
+  /* Decoder full-width layout */
+  .decoder-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    align-items: stretch;
+  }
+  
+  @media (max-width: 768px) {
+    .decoder-grid { grid-template-columns: 1fr; }
+  }
+  
+  .dropzone {
+    position: relative;
+    border: 2px dashed var(--line);
+    border-radius: var(--radius);
+    background: var(--surface-2);
+    padding: 40px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.18s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 280px;
+  }
+  
+  .dropzone:hover {
+    border-color: var(--muted);
+    background: var(--surface-3);
+  }
+  
+  .dropzone.dragover {
+    border-color: var(--accent);
+    background: var(--surface-3);
+  }
+  
+  .dropzone.has-image {
+    padding: 16px;
+    cursor: default;
+  }
+  
+  .dropzone input[type="file"] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+  
+  .dropzone.has-image input[type="file"] {
+    display: none;
+  }
+  
+  .dropzone .upload-icon {
+    width: 44px;
+    height: 44px;
+    margin-bottom: 14px;
+    color: var(--muted);
+    stroke-width: 1.6;
+    display: block;
+  }
+  
+  .dropzone .dz-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--ink);
+    margin-bottom: 4px;
+  }
+  
+  .dropzone .dz-sub {
+    font-size: 0.82rem;
+    color: var(--muted);
+  }
+  
+  .dropzone .dz-hint {
+    font-size: 0.76rem;
+    color: var(--muted-2);
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--line);
+    width: 80%;
+  }
+  
+  .dropzone .preview-img {
+    max-width: 100%;
+    max-height: 240px;
+    height: auto;
+    border-radius: 8px;
+    object-fit: contain;
+  }
+  
+  .dropzone .reset-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--ink);
+    color: white;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.95rem;
+    z-index: 2;
+    opacity: 0.85;
+    transition: opacity 0.15s;
+  }
+  
+  .dropzone .reset-btn:hover {
+    opacity: 1;
+  }
+  
+  .dropzone .reset-btn [data-lucide] {
+    width: 16px;
+    height: 16px;
+  }
+  
+  .decoder-result {
+    background: var(--surface-2);
+    border-radius: var(--radius);
+    padding: 28px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 280px;
+  }
+  
+  .result-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+  
+  .result-content {
+    word-break: break-all;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    color: var(--ink);
+    margin-bottom: 16px;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+  
+  .result-content a {
+    color: var(--link);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  
+  .result-content a:hover {
+    color: var(--link-hover);
+  }
+  
+  .result-empty {
+    color: var(--muted-2);
+    font-size: 0.92rem;
+    text-align: center;
+  }
+  
+  .result-empty [data-lucide],
+  .result-error [data-lucide] {
+    stroke-width: 1.5;
+  }
+  
+  .result-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  
+  .result-btn {
+    padding: 10px 14px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    border-radius: var(--radius-sm);
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--ink);
+    text-decoration: none;
+  }
+  
+  .result-btn [data-lucide] {
+    width: 14px;
+    height: 14px;
+  }
+  
+  .result-btn:hover {
+    border-color: var(--ink);
+    background: var(--surface-2);
+  }
+  
+  .result-btn.primary {
+    background: var(--ink);
+    color: white;
+    border-color: var(--ink);
+  }
+  
+  .result-btn.primary:hover {
+    background: var(--ink-2);
+  }
+  
+  .result-error {
+    color: var(--error);
+    font-size: 0.92rem;
+    text-align: center;
+    font-weight: 500;
+  }
+</style>
+</head>
+<body>
+
+<button class="theme-toggle" id="theme-toggle" aria-label="테마 전환" title="테마 전환">
+  <i data-lucide="moon" class="icon-moon"></i>
+  <i data-lucide="sun" class="icon-sun"></i>
+</button>
+
+<div class="container">
+  <header>
+    <div class="brand">
+      <div class="brand-mark">Q</div>
+      <div class="brand-text">QR CODE</div>
+    </div>
+    <h1>QR코드 생성기 & 리더</h1>
+    <p class="subtitle">QR코드를 만들거나 QR이미지를 읽어 보세요</p>
+    
+    <div class="mode-tabs" role="tablist">
+      <button class="mode-tab active" data-mode="generator">
+        <i data-lucide="qr-code"></i>
+        QR 생성
+      </button>
+      <button class="mode-tab" data-mode="reader">
+        <i data-lucide="scan-line"></i>
+        QR 읽기
+      </button>
+    </div>
+  </header>
+
+  <!-- QR 생성 페이지 -->
+  <div class="page active" id="page-generator">
+    <div class="grid">
+    <!-- 입력 영역 -->
+    <div>
+      <div class="section">
+        <div class="section-title">내용 입력(URL등)</div>
+        <div class="field">
+          <textarea id="content" placeholder="https://example.com 또는 일반 텍스트를 입력하세요"></textarea>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">QR형식</div>
+        <div class="tab-row">
+          <button class="tab-btn" data-type="url"><i data-lucide="link"></i>URL</button>
+          <button class="tab-btn" data-type="wifi"><i data-lucide="wifi"></i>WiFi</button>
+          <button class="tab-btn" data-type="email"><i data-lucide="mail"></i>이메일</button>
+          <button class="tab-btn" data-type="tel"><i data-lucide="phone"></i>전화</button>
+          <button class="tab-btn" data-type="sms"><i data-lucide="message-square"></i>문자</button>
+          <button class="tab-btn" data-type="vcard"><i data-lucide="contact"></i>명함</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">크기</div>
+        <div class="field">
+          <select id="size">
+            <option value="200">200 × 200 px</option>
+            <option value="300" selected>300 × 300 px</option>
+            <option value="400">400 × 400 px</option>
+            <option value="600">600 × 600 px</option>
+            <option value="800">800 × 800 px</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">색상</div>
+        <div class="row" style="margin-bottom: 12px;">
+          <div class="field">
+            <label>전경색</label>
+            <div class="color-row">
+              <input type="color" id="fg-color" value="#000000">
+              <input type="text" class="color-text" id="fg-text" value="#000000">
+            </div>
+          </div>
+
+          <div class="field">
+            <label>배경색</label>
+            <div class="color-row">
+              <input type="color" id="bg-color" value="#ffffff">
+              <input type="text" class="color-text" id="bg-text" value="#ffffff">
+            </div>
+          </div>
+        </div>
+
+        <div class="preset-row">
+          <button class="color-preset" data-fg="#000000" data-bg="#ffffff" style="--swatch-fg:#000000;--swatch-bg:#ffffff"><span class="swatch"></span>기본</button>
+          <button class="color-preset" data-fg="#026573" data-bg="#ffffff" style="--swatch-fg:#026573;--swatch-bg:#ffffff"><span class="swatch"></span>청록색</button>
+          <button class="color-preset" data-fg="#2563eb" data-bg="#ffffff" style="--swatch-fg:#2563eb;--swatch-bg:#ffffff"><span class="swatch"></span>블루</button>
+          <button class="color-preset" data-fg="#ea580c" data-bg="#ffffff" style="--swatch-fg:#ea580c;--swatch-bg:#ffffff"><span class="swatch"></span>오렌지</button>
+          <button class="color-preset" data-fg="#ffffff" data-bg="#1f1f1f" style="--swatch-fg:#ffffff;--swatch-bg:#1f1f1f"><span class="swatch"></span>반전</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 미리보기 영역 -->
+    <div class="preview-wrap">
+      <div class="section-title">미리보기</div>
+      
+      <div class="preview-area">
+        <div id="empty-state" class="empty-state">
+          <i data-lucide="qr-code" style="width:48px;height:48px;opacity:0.5;display:block;margin:0 auto 12px;"></i>
+          <div>내용을 입력하면 QR코드가<br>여기에 표시됩니다</div>
+        </div>
+        <canvas id="qr-canvas" style="display:none;"></canvas>
+      </div>
+
+      <div class="actions">
+        <button class="action btn-primary" id="download-png" disabled>
+          <i data-lucide="download" style="width:15px;height:15px;"></i>
+          PNG 다운로드
+        </button>
+        <button class="action btn-secondary" id="download-svg" disabled>
+          <i data-lucide="download" style="width:15px;height:15px;"></i>
+          SVG 다운로드
+        </button>
+      </div>
+
+      <div class="info" id="info-text">생성 정보가 여기에 표시됩니다</div>
+    </div>
+  </div>
+
+  </div>
+  <!-- /QR 생성 페이지 -->
+
+  <!-- QR 읽기 페이지 -->
+  <div class="page" id="page-reader">
+    <div class="decoder-grid">
+      <div class="dropzone" id="dropzone">
+        <input type="file" id="file-input" accept="image/*">
+        <i data-lucide="upload-cloud" class="upload-icon"></i>
+        <div class="dz-title">이미지 업로드 또는 드래그</div>
+        <div class="dz-sub">PNG, JPG 등 QR 이미지 파일</div>
+        <div class="dz-hint"><i data-lucide="lightbulb" style="width:13px;height:13px;vertical-align:-2px;"></i> 클립보드에서 Ctrl + V 로 붙여넣기도 가능합니다</div>
+      </div>
+      
+      <div class="decoder-result" id="decoder-result">
+        <div class="result-empty" id="result-empty">
+          <i data-lucide="search" style="width:40px;height:40px;opacity:0.5;display:block;margin:0 auto 12px;"></i>
+          <div>읽은 QR 내용이 여기에 표시됩니다</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- /QR 읽기 페이지 -->
+
+  <footer>
+    <div>오프라인에서도 사용 가능합니다 (최초 로딩 후)</div>
+    <div class="copyright">© Copyright by Seungoh You. All rights reserved.</div>
+  </footer>
+</div>
+
+<script>
+  // 동적으로 추가된 아이콘 렌더링 헬퍼 (스크립트 전반에서 사용)
+  window.refreshIcons = function() {
+    if (window.lucide && typeof window.lucide.createIcons === 'function') {
+      window.lucide.createIcons();
+    }
+  };
+
+  const $ = (id) => document.getElementById(id);
+  const content = $('content');
+  const sizeSelect = $('size');
+  const fgColor = $('fg-color');
+  const bgColor = $('bg-color');
+  const fgText = $('fg-text');
+  const bgText = $('bg-text');
+  const canvas = $('qr-canvas');
+  const emptyState = $('empty-state');
+  const downloadPng = $('download-png');
+  const downloadSvg = $('download-svg');
+  const infoText = $('info-text');
+
+  const EC_LEVEL = 'Q';
+  let lastSvgString = '';
+
+  if (typeof qrcode === 'undefined') {
+    infoText.textContent = '⚠ QR 라이브러리를 불러올 수 없습니다. 인터넷 연결을 확인하세요.';
+    infoText.classList.add('error');
+  }
+
+  fgColor.addEventListener('input', () => { fgText.value = fgColor.value.toUpperCase(); generate(); });
+  bgColor.addEventListener('input', () => { bgText.value = bgColor.value.toUpperCase(); generate(); });
+  fgText.addEventListener('input', () => {
+    if (/^#[0-9a-fA-F]{6}$/.test(fgText.value)) { fgColor.value = fgText.value; generate(); }
+  });
+  bgText.addEventListener('input', () => {
+    if (/^#[0-9a-fA-F]{6}$/.test(bgText.value)) { bgColor.value = bgText.value; generate(); }
+  });
+
+  document.querySelectorAll('.color-preset').forEach(btn => {
+    btn.addEventListener('click', () => {
+      fgColor.value = btn.dataset.fg;
+      bgColor.value = btn.dataset.bg;
+      fgText.value = btn.dataset.fg.toUpperCase();
+      bgText.value = btn.dataset.bg.toUpperCase();
+      generate();
+    });
+  });
+
+  document.querySelectorAll('.tab-btn[data-type]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const type = btn.dataset.type;
+      document.querySelectorAll('.tab-btn[data-type]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      
+      const templates = {
+        url: 'https://',
+        wifi: 'WIFI:T:WPA;S:네트워크이름;P:비밀번호;;',
+        email: 'mailto:example@email.com?subject=제목&body=내용',
+        tel: 'tel:010-1234-5678',
+        sms: 'sms:010-1234-5678?body=메시지내용',
+        vcard: `BEGIN:VCARD
+VERSION:3.0
+N:홍길동
+FN:홍길동
+ORG:고창교육지원청
+TITLE:교육장/디지털크리에이터
+TEL;TYPE=CELL:01012341234
+EMAIL:sample@naver.com
+URL:https://youtube.com/@pianocanvas
+END:VCARD`
+      };
+      content.value = templates[type] || '';
+      content.focus();
+      generate();
+    });
+  });
+
+  content.addEventListener('input', generate);
+  sizeSelect.addEventListener('change', generate);
+
+  function utf8Encode(str) {
+    let utf8 = '';
+    for (let i = 0; i < str.length; i++) {
+      let charcode = str.charCodeAt(i);
+      if (charcode < 0x80) {
+        utf8 += String.fromCharCode(charcode);
+      } else if (charcode < 0x800) {
+        utf8 += String.fromCharCode(0xc0 | (charcode >> 6));
+        utf8 += String.fromCharCode(0x80 | (charcode & 0x3f));
+      } else if (charcode < 0xd800 || charcode >= 0xe000) {
+        utf8 += String.fromCharCode(0xe0 | (charcode >> 12));
+        utf8 += String.fromCharCode(0x80 | ((charcode >> 6) & 0x3f));
+        utf8 += String.fromCharCode(0x80 | (charcode & 0x3f));
+      } else {
+        i++;
+        charcode = 0x10000 + (((charcode & 0x3ff) << 10) | (str.charCodeAt(i) & 0x3ff));
+        utf8 += String.fromCharCode(0xf0 | (charcode >> 18));
+        utf8 += String.fromCharCode(0x80 | ((charcode >> 12) & 0x3f));
+        utf8 += String.fromCharCode(0x80 | ((charcode >> 6) & 0x3f));
+        utf8 += String.fromCharCode(0x80 | (charcode & 0x3f));
+      }
+    }
+    return utf8;
+  }
+
+  function isInFinderPattern(row, col, moduleCount) {
+    return (row < 7 && col < 7) ||
+           (row < 7 && col >= moduleCount - 7) ||
+           (row >= moduleCount - 7 && col < 7);
+  }
+
+  function roundedRectPath(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+  }
+
+  function drawFinderPattern(ctx, x, y, cellSize, fg, bg) {
+    ctx.fillStyle = fg;
+    roundedRectPath(ctx, x, y, 7 * cellSize, 7 * cellSize, 1.6 * cellSize);
+    ctx.fill();
+    
+    ctx.fillStyle = bg;
+    roundedRectPath(ctx, x + cellSize, y + cellSize, 5 * cellSize, 5 * cellSize, 1.1 * cellSize);
+    ctx.fill();
+    
+    ctx.fillStyle = fg;
+    roundedRectPath(ctx, x + 2 * cellSize, y + 2 * cellSize, 3 * cellSize, 3 * cellSize, 0.7 * cellSize);
+    ctx.fill();
+  }
+
+  function drawSmoothModule(ctx, x, y, size, hasTop, hasRight, hasBottom, hasLeft) {
+    const r = size * 0.5;
+    const tlRound = !hasTop && !hasLeft;
+    const trRound = !hasTop && !hasRight;
+    const brRound = !hasBottom && !hasRight;
+    const blRound = !hasBottom && !hasLeft;
+    
+    ctx.beginPath();
+    ctx.moveTo(x + (tlRound ? r : 0), y);
+    ctx.lineTo(x + size - (trRound ? r : 0), y);
+    if (trRound) ctx.quadraticCurveTo(x + size, y, x + size, y + r);
+    ctx.lineTo(x + size, y + size - (brRound ? r : 0));
+    if (brRound) ctx.quadraticCurveTo(x + size, y + size, x + size - r, y + size);
+    ctx.lineTo(x + (blRound ? r : 0), y + size);
+    if (blRound) ctx.quadraticCurveTo(x, y + size, x, y + size - r);
+    ctx.lineTo(x, y + (tlRound ? r : 0));
+    if (tlRound) ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  function generate() {
+    const text = content.value.trim();
+    
+    if (!text) {
+      canvas.style.display = 'none';
+      emptyState.style.display = 'block';
+      downloadPng.disabled = true;
+      downloadSvg.disabled = true;
+      infoText.textContent = '생성 정보가 여기에 표시됩니다';
+      infoText.classList.remove('error');
+      return;
+    }
+
+    if (typeof qrcode === 'undefined') {
+      infoText.textContent = '⚠ QR 라이브러리를 불러올 수 없습니다. 인터넷 연결을 확인하세요.';
+      infoText.classList.add('error');
+      return;
+    }
+
+    try {
+      const size = parseInt(sizeSelect.value);
+      const fg = fgColor.value;
+      const bg = bgColor.value;
+
+      const qr = qrcode(0, EC_LEVEL);
+      qr.addData(utf8Encode(text), 'Byte');
+      qr.make();
+
+      const moduleCount = qr.getModuleCount();
+      const marginModules = 2;
+      const totalModules = moduleCount + marginModules * 2;
+      const cellSize = Math.max(1, Math.floor(size / totalModules));
+      const actualSize = cellSize * totalModules;
+      const offset = cellSize * marginModules;
+
+      canvas.width = actualSize;
+      canvas.height = actualSize;
+      canvas.style.width = size + 'px';
+      canvas.style.height = size + 'px';
+      
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, actualSize, actualSize);
+
+      ctx.fillStyle = fg;
+      for (let row = 0; row < moduleCount; row++) {
+        for (let col = 0; col < moduleCount; col++) {
+          if (isInFinderPattern(row, col, moduleCount)) continue;
+          if (!qr.isDark(row, col)) continue;
+          
+          const hasTop    = row > 0 && !isInFinderPattern(row-1, col, moduleCount) && qr.isDark(row-1, col);
+          const hasBottom = row < moduleCount-1 && !isInFinderPattern(row+1, col, moduleCount) && qr.isDark(row+1, col);
+          const hasLeft   = col > 0 && !isInFinderPattern(row, col-1, moduleCount) && qr.isDark(row, col-1);
+          const hasRight  = col < moduleCount-1 && !isInFinderPattern(row, col+1, moduleCount) && qr.isDark(row, col+1);
+          
+          drawSmoothModule(ctx, offset + col * cellSize, offset + row * cellSize, cellSize, hasTop, hasRight, hasBottom, hasLeft);
+        }
+      }
+      
+      const finderPositions = [[0, 0], [0, moduleCount - 7], [moduleCount - 7, 0]];
+      for (const [fr, fc] of finderPositions) {
+        drawFinderPattern(ctx, offset + fc * cellSize, offset + fr * cellSize, cellSize, fg, bg);
+      }
+
+      lastSvgString = buildSvg(qr, moduleCount, marginModules, fg, bg);
+
+      canvas.style.display = 'block';
+      emptyState.style.display = 'none';
+      downloadPng.disabled = false;
+      downloadSvg.disabled = false;
+      
+      const byteLength = new Blob([text]).size;
+      infoText.textContent = `${actualSize} × ${actualSize}px · ${text.length}자 · ${byteLength} bytes`;
+      infoText.classList.remove('error');
+
+    } catch (err) {
+      infoText.textContent = '⚠ ' + err.message + ' (내용이 너무 길거나 크기를 줄여보세요)';
+      infoText.classList.add('error');
+      canvas.style.display = 'none';
+      emptyState.style.display = 'block';
+      downloadPng.disabled = true;
+      downloadSvg.disabled = true;
+    }
+  }
+
+  function buildSvg(qr, moduleCount, marginModules, fg, bg) {
+    const totalModules = moduleCount + marginModules * 2;
+    let pathData = '';
+    
+    for (let row = 0; row < moduleCount; row++) {
+      for (let col = 0; col < moduleCount; col++) {
+        if (isInFinderPattern(row, col, moduleCount)) continue;
+        if (!qr.isDark(row, col)) continue;
+        
+        const hasTop    = row > 0 && !isInFinderPattern(row-1, col, moduleCount) && qr.isDark(row-1, col);
+        const hasBottom = row < moduleCount-1 && !isInFinderPattern(row+1, col, moduleCount) && qr.isDark(row+1, col);
+        const hasLeft   = col > 0 && !isInFinderPattern(row, col-1, moduleCount) && qr.isDark(row, col-1);
+        const hasRight  = col < moduleCount-1 && !isInFinderPattern(row, col+1, moduleCount) && qr.isDark(row, col+1);
+        
+        pathData += smoothModulePathD(marginModules + col, marginModules + row, hasTop, hasRight, hasBottom, hasLeft);
+      }
+    }
+    
+    const finders = [[0, 0], [0, moduleCount - 7], [moduleCount - 7, 0]];
+    let finderSvg = '';
+    for (const [fr, fc] of finders) {
+      const x = marginModules + fc;
+      const y = marginModules + fr;
+      finderSvg += `<rect x="${x}" y="${y}" width="7" height="7" rx="1.6" ry="1.6" fill="${fg}"/>`;
+      finderSvg += `<rect x="${x + 1}" y="${y + 1}" width="5" height="5" rx="1.1" ry="1.1" fill="${bg}"/>`;
+      finderSvg += `<rect x="${x + 2}" y="${y + 2}" width="3" height="3" rx="0.7" ry="0.7" fill="${fg}"/>`;
+    }
+    
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalModules} ${totalModules}">
+  <rect width="${totalModules}" height="${totalModules}" fill="${bg}"/>
+  <path d="${pathData}" fill="${fg}"/>
+  ${finderSvg}
+</svg>`;
+  }
+  
+  function smoothModulePathD(x, y, hasTop, hasRight, hasBottom, hasLeft) {
+    const r = 0.5;
+    const tlRound = !hasTop && !hasLeft;
+    const trRound = !hasTop && !hasRight;
+    const brRound = !hasBottom && !hasRight;
+    const blRound = !hasBottom && !hasLeft;
+    
+    let d = `M${x + (tlRound ? r : 0)} ${y}`;
+    d += `H${x + 1 - (trRound ? r : 0)}`;
+    if (trRound) d += `Q${x + 1} ${y} ${x + 1} ${y + r}`;
+    d += `V${y + 1 - (brRound ? r : 0)}`;
+    if (brRound) d += `Q${x + 1} ${y + 1} ${x + 1 - r} ${y + 1}`;
+    d += `H${x + (blRound ? r : 0)}`;
+    if (blRound) d += `Q${x} ${y + 1} ${x} ${y + 1 - r}`;
+    d += `V${y + (tlRound ? r : 0)}`;
+    if (tlRound) d += `Q${x} ${y} ${x + r} ${y}`;
+    d += 'Z';
+    return d;
+  }
+
+  function triggerDownload(url, filename) {
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(() => { document.body.removeChild(link); }, 100);
+  }
+
+  downloadPng.addEventListener('click', () => {
+    try {
+      canvas.toBlob((blob) => {
+        if (!blob) { alert('PNG 생성에 실패했습니다.'); return; }
+        const url = URL.createObjectURL(blob);
+        triggerDownload(url, `qrcode_${Date.now()}.png`);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }, 'image/png');
+    } catch (err) {
+      alert('다운로드 오류: ' + err.message);
+    }
+  });
+
+  downloadSvg.addEventListener('click', () => {
+    try {
+      if (!lastSvgString) return;
+      const blob = new Blob([lastSvgString], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      triggerDownload(url, `qrcode_${Date.now()}.svg`);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (err) {
+      alert('다운로드 오류: ' + err.message);
+    }
+  });
+
+  // ============================================================
+  // QR 디코더 (이미지 업로드 → URL/내용 추출)
+  // ============================================================
+  const dropzone = $('dropzone');
+  const fileInput = $('file-input');
+  const decoderResult = $('decoder-result');
+  const resultEmpty = $('result-empty');
+
+  // URL 자동 감지 정규식
+  function isUrl(text) {
+    return /^(https?:\/\/|www\.)/i.test(text.trim());
+  }
+
+  // vCard 감지
+  function isVCard(text) {
+    return /^BEGIN:VCARD/i.test(text.trim());
+  }
+
+  // 텔, 이메일, sms, wifi 등 스킴 감지
+  function getSchemeAction(text) {
+    const t = text.trim();
+    if (/^tel:/i.test(t)) return { label: '전화 걸기', href: t };
+    if (/^mailto:/i.test(t)) return { label: '이메일 보내기', href: t };
+    if (/^sms:/i.test(t)) return { label: '문자 보내기', href: t };
+    return null;
+  }
+
+  // HTML 안전 이스케이프
+  function escapeHtml(s) {
+    return s.replace(/[&<>"']/g, c => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+  }
+
+  // 결과 표시
+  function showDecodedResult(text) {
+    let contentHtml = '';
+    let actionsHtml = '';
+
+    if (isVCard(text)) {
+      contentHtml = `<div style="font-family:'JetBrains Mono','SF Mono',Menlo,monospace;font-size:0.82rem;white-space:pre-wrap;background:var(--code-bg);padding:12px;border-radius:6px;border:1px solid var(--line);">${escapeHtml(text)}</div>`;
+      actionsHtml = `
+        <button class="result-btn primary" onclick="copyToClipboard(this, ${JSON.stringify(text)}, '명함 복사')"><i data-lucide="clipboard"></i> 명함 복사</button>
+      `;
+    } else if (isUrl(text)) {
+      const url = text.startsWith('www.') ? 'https://' + text : text;
+      contentHtml = `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(text)}</a>`;
+      actionsHtml = `
+        <a class="result-btn primary" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">
+          <i data-lucide="external-link"></i> 링크 열기
+        </a>
+        <button class="result-btn" onclick="copyToClipboard(this, ${JSON.stringify(text)}, 'URL 복사')"><i data-lucide="copy"></i> URL 복사</button>
+      `;
+    } else {
+      const scheme = getSchemeAction(text);
+      contentHtml = `<div>${escapeHtml(text)}</div>`;
+      if (scheme) {
+        const iconName = scheme.label.includes('전화') ? 'phone' : scheme.label.includes('이메일') ? 'mail' : 'message-square';
+        actionsHtml = `
+          <a class="result-btn primary" href="${escapeHtml(scheme.href)}"><i data-lucide="${iconName}"></i> ${scheme.label}</a>
+          <button class="result-btn" onclick="copyToClipboard(this, ${JSON.stringify(text)}, '텍스트 복사')"><i data-lucide="copy"></i> 텍스트 복사</button>
+        `;
+      } else {
+        actionsHtml = `
+          <button class="result-btn primary" onclick="copyToClipboard(this, ${JSON.stringify(text)}, '텍스트 복사')"><i data-lucide="clipboard"></i> 텍스트 복사</button>
+        `;
+      }
+    }
+
+    decoderResult.innerHTML = `
+      <div class="result-label">읽은 내용</div>
+      <div class="result-content">${contentHtml}</div>
+      <div class="result-actions">${actionsHtml}</div>
+    `;
+    window.refreshIcons && window.refreshIcons();
+  }
+  
+  // 클립보드 복사 + 피드백
+  window.copyToClipboard = function(btn, text, originalLabel) {
+    navigator.clipboard.writeText(text).then(() => {
+      const iconName = btn.querySelector('[data-lucide]')?.getAttribute('data-lucide') || 'copy';
+      btn.innerHTML = `<i data-lucide="check"></i> 복사됨`;
+      window.refreshIcons && window.refreshIcons();
+      setTimeout(() => {
+        btn.innerHTML = `<i data-lucide="${iconName === 'check' ? 'copy' : iconName}"></i> ${originalLabel}`;
+        window.refreshIcons && window.refreshIcons();
+      }, 1500);
+    });
+  };
+
+  // 결과 - 디코딩 실패
+  function showDecodeError(message) {
+    decoderResult.innerHTML = `
+      <div class="result-error">
+        <i data-lucide="alert-circle" style="width:40px;height:40px;display:block;margin:0 auto 12px;"></i>
+        <div>${escapeHtml(message)}</div>
+      </div>
+    `;
+    window.refreshIcons && window.refreshIcons();
+  }
+
+  // 결과 초기화
+  function resetDecoderResult() {
+    decoderResult.innerHTML = `
+      <div class="result-empty">
+        <i data-lucide="search" style="width:40px;height:40px;opacity:0.5;display:block;margin:0 auto 12px;"></i>
+        <div>읽은 QR 내용이 여기에 표시됩니다</div>
+      </div>
+    `;
+    window.refreshIcons && window.refreshIcons();
+  }
+
+  // 드롭존 초기화
+  function resetDropzone() {
+    dropzone.classList.remove('has-image');
+    dropzone.innerHTML = `
+      <input type="file" id="file-input" accept="image/*">
+      <i data-lucide="upload-cloud" class="upload-icon"></i>
+      <div class="dz-title">이미지 업로드 또는 드래그</div>
+      <div class="dz-sub">PNG, JPG 등 QR 이미지 파일</div>
+      <div class="dz-hint"><i data-lucide="lightbulb" style="width:13px;height:13px;vertical-align:-2px;"></i> 클립보드에서 Ctrl + V 로 붙여넣기도 가능합니다</div>
+    `;
+    bindFileInput();
+    resetDecoderResult();
+    window.refreshIcons && window.refreshIcons();
+  }
+
+  // 미리보기 표시
+  function showImagePreview(imageSrc) {
+    dropzone.classList.add('has-image');
+    dropzone.innerHTML = `
+      <button class="reset-btn" onclick="window._resetDropzone()" title="초기화"><i data-lucide="x"></i></button>
+      <img class="preview-img" src="${imageSrc}" alt="QR 이미지">
+    `;
+    window.refreshIcons && window.refreshIcons();
+  }
+  window._resetDropzone = resetDropzone;
+
+  // 이미지 디코딩
+  function decodeImage(file) {
+    if (typeof jsQR === 'undefined') {
+      showDecodeError('QR 디코더 라이브러리가 로드되지 않았습니다.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const imageSrc = e.target.result;
+      showImagePreview(imageSrc);
+      
+      const img = new Image();
+      img.onload = () => {
+        // 큰 이미지를 적절히 리사이즈 (최대 1000px)
+        const maxDim = 1000;
+        let w = img.width, h = img.height;
+        if (w > maxDim || h > maxDim) {
+          const ratio = Math.min(maxDim / w, maxDim / h);
+          w = Math.floor(w * ratio);
+          h = Math.floor(h * ratio);
+        }
+        
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = w;
+        tempCanvas.height = h;
+        const tempCtx = tempCanvas.getContext('2d');
+        tempCtx.drawImage(img, 0, 0, w, h);
+        
+        try {
+          const imageData = tempCtx.getImageData(0, 0, w, h);
+          const code = jsQR(imageData.data, w, h, { inversionAttempts: 'attemptBoth' });
+          
+          if (code && code.data) {
+            showDecodedResult(code.data);
+          } else {
+            showDecodeError('QR코드를 인식할 수 없습니다. 다른 이미지를 시도해보세요.');
+          }
+        } catch (err) {
+          showDecodeError('이미지 처리 오류: ' + err.message);
+        }
+      };
+      img.onerror = () => {
+        showDecodeError('이미지를 불러올 수 없습니다.');
+      };
+      img.src = imageSrc;
+    };
+    reader.onerror = () => {
+      showDecodeError('파일을 읽을 수 없습니다.');
+    };
+    reader.readAsDataURL(file);
+  }
+
+  // 파일 처리
+  function handleFile(file) {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      showDecodeError('이미지 파일만 업로드할 수 있습니다.');
+      return;
+    }
+    decodeImage(file);
+  }
+
+  // 파일 input 이벤트 바인딩
+  function bindFileInput() {
+    const input = $('file-input');
+    if (input) {
+      input.addEventListener('change', (e) => {
+        if (e.target.files && e.target.files[0]) {
+          handleFile(e.target.files[0]);
+        }
+      });
+    }
+  }
+  bindFileInput();
+
+  // 드래그 앤 드롭
+  ['dragenter', 'dragover'].forEach(evt => {
+    dropzone.addEventListener(evt, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!dropzone.classList.contains('has-image')) {
+        dropzone.classList.add('dragover');
+      }
+    });
+  });
+
+  ['dragleave', 'drop'].forEach(evt => {
+    dropzone.addEventListener(evt, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dropzone.classList.remove('dragover');
+    });
+  });
+
+  dropzone.addEventListener('drop', (e) => {
+    if (dropzone.classList.contains('has-image')) return;
+    const files = e.dataTransfer.files;
+    if (files && files[0]) {
+      handleFile(files[0]);
+    }
+  });
+
+  // 클립보드 붙여넣기 지원 (Ctrl+V로 이미지 붙여넣기) - 읽기 모드일 때만
+  document.addEventListener('paste', (e) => {
+    if (!document.getElementById('page-reader').classList.contains('active')) return;
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        const file = item.getAsFile();
+        if (file) {
+          handleFile(file);
+          break;
+        }
+      }
+    }
+  });
+
+  // ============================================================
+  // 모드 토글 (생성기 / 리더)
+  // ============================================================
+  const modeTabs = document.querySelectorAll('.mode-tab');
+  const pages = {
+    generator: document.getElementById('page-generator'),
+    reader: document.getElementById('page-reader')
+  };
+
+  modeTabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      const mode = tab.dataset.mode;
+      
+      modeTabs.forEach(t => t.classList.toggle('active', t === tab));
+      Object.entries(pages).forEach(([key, page]) => {
+        page.classList.toggle('active', key === mode);
+      });
+      
+      // 부드러운 스크롤로 상단 정렬
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  });
+
+  // ============================================================
+  // 다크/라이트 테마 토글
+  // ============================================================
+  const themeToggle = $('theme-toggle');
+  const THEME_KEY = 'qr-app-theme';
+
+  function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    try { localStorage.setItem(THEME_KEY, theme); } catch (e) {}
+  }
+
+  function getInitialTheme() {
+    try {
+      const saved = localStorage.getItem(THEME_KEY);
+      if (saved === 'light' || saved === 'dark') return saved;
+    } catch (e) {}
+    // 시스템 설정 따라가기
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      return 'dark';
+    }
+    return 'light';
+  }
+
+  // 초기 테마 적용
+  applyTheme(getInitialTheme());
+
+  themeToggle.addEventListener('click', () => {
+    const current = document.documentElement.getAttribute('data-theme') || 'light';
+    applyTheme(current === 'light' ? 'dark' : 'light');
+  });
+
+  // 시스템 테마 변경 자동 감지 (사용자가 수동 설정한 적 없을 때만)
+  if (window.matchMedia) {
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+      try {
+        if (!localStorage.getItem(THEME_KEY)) {
+          applyTheme(e.matches ? 'dark' : 'light');
+        }
+      } catch (err) {}
+    });
+  }
+
+  // ============================================================
+  // Lucide Icons 초기화 (라이브러리 로드 대기)
+  // ============================================================
+  function initLucide() {
+    if (window.lucide && typeof window.lucide.createIcons === 'function') {
+      window.lucide.createIcons();
+      return true;
+    }
+    return false;
+  }
+
+  // 즉시 시도
+  if (!initLucide()) {
+    // 100ms마다 최대 5초 동안 재시도
+    let attempts = 0;
+    const interval = setInterval(() => {
+      attempts++;
+      if (initLucide() || attempts > 50) {
+        clearInterval(interval);
+      }
+    }, 100);
+  }
+</script>
+
+</body>
+</html>
