@@ -1,2 +1,0 @@
-# money
-Check YouTube earnings
